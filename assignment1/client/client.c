@@ -8,15 +8,15 @@
 #include <arpa/inet.h>
 
 #define SERVICE_PORT	21235
+#define LENGTH 16384
 
 int main()
 {
 	int port = SERVICE_PORT;
 	char *host = "localhost";
-	char recvBuff[1024];
+	char recvBuff[LENGTH];
 	int n;
 	char filename[1000] = "test.txt";
-//	filename = "test.txt";
 
 	printf("connecting to %s, port %d\n", host, port);
 
@@ -74,17 +74,27 @@ int main()
 
 	write(fd, filename, strlen(filename));
 
-	while((n = read(fd, recvBuff, sizeof(recvBuff)-1)) > 0)
-	{
-		recvBuff[n] = 0;
-		if(fputs(recvBuff, stdout) == EOF){
-			printf("\n Error : Fputs error");
+	FILE *fr = fopen(filename, "a");
+	if(fr == NULL)
+		printf("File %s Cannot be opened.\n", filename);
+	else{
+		bzero(recvBuff, LENGTH); 
+		int fr_block_sz = 0;
+	    while((fr_block_sz = read(fd, recvBuff, LENGTH)) > 0){
+			int write_sz = fwrite(recvBuff, sizeof(char), fr_block_sz, fr);
+			if(write_sz < fr_block_sz){
+				printf("File write failed.\n");
+			}
+			bzero(recvBuff, LENGTH);
+			if (fr_block_sz == 0 || fr_block_sz != 512){
+				break;
+			}
 		}
-		printf("\n");
-	}
-
-	if( n < 0){
-		printf("\n Read Error \n");
+		if(fr_block_sz < 0){
+			printf("File transfer failed!\n");
+		}
+		printf("Congratulations! File received from server!\n");
+		fclose(fr);
 	}
 	close(fd);
 	return 0;

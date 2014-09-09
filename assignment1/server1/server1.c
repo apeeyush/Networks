@@ -8,7 +8,7 @@
 #include <sys/types.h>
 
 #define SERVICE_PORT	21235
-#define LENGTH 1025
+#define LENGTH 16384
 
 int main()
 {
@@ -62,7 +62,7 @@ int main()
 			printf("Accept Failed!\n");
 			return -1;
 		}
-		rc = recv(rqst, filename, sizeof(filename), 0);
+		rc = read(rqst, filename, sizeof(filename));
 		if (rc == -1){
 			printf("Filename Recieve Failed!\n");
 			return -1;
@@ -83,7 +83,7 @@ int main()
 		printf("Congratulations! Found '%s' on Server 1\n", filename);
 		int fs_block_sz;
 		while((fs_block_sz = fread(sendBuff, sizeof(char), LENGTH, fs))>0){
-			if(send(rqst, sendBuff, fs_block_sz, 0) < 0){
+			if(write(rqst, sendBuff, fs_block_sz) < 0){
 				printf("Failed to send file %s.\n", filename);
 				return -1;
 			}
@@ -91,7 +91,6 @@ int main()
 		}
 		printf("File transfer successful!");
 		close(rqst);
-		sleep(1);
 	}
 	return 0;
 }
