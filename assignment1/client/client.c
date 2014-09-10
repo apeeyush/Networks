@@ -7,29 +7,30 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 
-#define SERVICE_PORT	21235
-#define LENGTH 16384
+#define SERVER1_PORT	21235
+#define SERVER2_PORT	21236
+
+#define LENGTH 100000
 
 int main()
 {
-	int port = SERVICE_PORT;
+	int port1 = SERVER1_PORT;
+	int port2 = SERVER2_PORT;
 	char *host = "localhost";
 	char recvBuff[LENGTH];
 	int n;
-	char filename[1000] = "test.txt";
+	char filename[1000] = "github.jpg";
 
-	printf("connecting to %s, port %d\n", host, port);
+	printf("Enter filename:");
+	scanf("%s", filename);
+
+	printf("connecting to %s, port %d\n", host, port1);
 
 	struct hostent *hp;	/* host information */
 	unsigned int alen;	/* address length when we get the port number */
 	struct sockaddr_in myaddr;	/* our address */
 	struct sockaddr_in servaddr;	/* server address */
 	int fd;  /* fd is the file descriptor for the connected socket */
-
-	/* get a tcp/ip socket */
-	/* We do this as we did it for the server */
-	/* request the Internet address protocol */
-	/* and a reliable 2-way byte stream */
 
 	fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (fd < 0){
@@ -52,7 +53,7 @@ int main()
 	}
 
 	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(port);
+	servaddr.sin_port = htons(port1);
 
 	/* look up the address of the server given its name */
 	hp = gethostbyname(host);
@@ -80,20 +81,30 @@ int main()
 	else{
 		bzero(recvBuff, LENGTH); 
 		int fr_block_sz = 0;
-	    while((fr_block_sz = read(fd, recvBuff, LENGTH)) > 0){
+		int flag = -1;
+		if ( (fr_block_sz = read(fd, recvBuff, LENGTH)) <=0){
+			printf("File not found on Server1.\n");
+		}else{
 			int write_sz = fwrite(recvBuff, sizeof(char), fr_block_sz, fr);
 			if(write_sz < fr_block_sz){
 				printf("File write failed.\n");
 			}
 			bzero(recvBuff, LENGTH);
-			if (fr_block_sz == 0 || fr_block_sz != 512){
-				break;
+			while((fr_block_sz = read(fd, recvBuff, LENGTH)) > 0){
+				int write_sz = fwrite(recvBuff, sizeof(char), fr_block_sz, fr);
+				if(write_sz < fr_block_sz){
+					printf("File write failed.\n");
+				}
+				bzero(recvBuff, LENGTH);
+				if (fr_block_sz == 0 || fr_block_sz != 512){
+					break;
+				}
 			}
+			if(fr_block_sz < 0){
+				printf("File transfer failed!\n");
+			}
+			printf("Congratulations! File received from server!\n");
 		}
-		if(fr_block_sz < 0){
-			printf("File transfer failed!\n");
-		}
-		printf("Congratulations! File received from server!\n");
 		fclose(fr);
 	}
 	close(fd);

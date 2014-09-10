@@ -8,7 +8,7 @@
 #include <sys/types.h>
 
 #define SERVICE_PORT	21235
-#define LENGTH 16384
+#define LENGTH 100000
 
 int main()
 {
@@ -60,12 +60,13 @@ int main()
 		rqst = accept(svc, (struct sockaddr *)&client_addr, &sin_size);
 		if (rqst < 0){
 			printf("Accept Failed!\n");
-			return -1;
+			continue;
 		}
 		rc = read(rqst, filename, sizeof(filename));
 		if (rc == -1){
 			printf("Filename Recieve Failed!\n");
-			return -1;
+			close(rqst);
+			continue;
 		}
 		/* null terminate and strip any \r and \n from filename */
 		filename[rc] = '\0';
@@ -77,19 +78,21 @@ int main()
 		printf("Received a connection from: %s port %d\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 		FILE *fs = fopen(filename,"r");
 		if (fs == NULL) {
-			printf("Unable to open '%s'\n", filename);
-			return -1;
+			printf("File '%s' not found on server 1.\n", filename);
+			close(rqst);
+			continue;
 		}
 		printf("Congratulations! Found '%s' on Server 1\n", filename);
 		int fs_block_sz;
 		while((fs_block_sz = fread(sendBuff, sizeof(char), LENGTH, fs))>0){
 			if(write(rqst, sendBuff, fs_block_sz) < 0){
 				printf("Failed to send file %s.\n", filename);
-				return -1;
+				close(rqst);
+				continue;
 			}
 			bzero(sendBuff, LENGTH);
 		}
-		printf("File transfer successful!");
+		printf("File transfer successful!\n");
 		close(rqst);
 	}
 	return 0;
