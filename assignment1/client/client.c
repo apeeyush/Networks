@@ -12,85 +12,68 @@
 
 #define LENGTH 100000
 
-int main()
-{
-	int port1 = SERVER1_PORT;
-	int port2 = SERVER2_PORT;
+int server_rcv(char filename[1000], int port){
 	char *host = "localhost";
 	char recvBuff[LENGTH];
-	int n;
-	char filename[1000] = "github.jpg";
+	int flag = -1;
 
-	printf("Enter filename:");
-	scanf("%s", filename);
+	printf("Connecting to %s, port %d\n", host, port);
 
-	printf("connecting to %s, port %d\n", host, port1);
+	struct hostent *hp;
+	struct sockaddr_in clientsockaddr;
+	struct sockaddr_in serversockaddr;
+	int server_fd;
 
-	struct hostent *hp;	/* host information */
-	unsigned int alen;	/* address length when we get the port number */
-	struct sockaddr_in myaddr;	/* our address */
-	struct sockaddr_in servaddr;	/* server address */
-	int fd;  /* fd is the file descriptor for the connected socket */
-
-	fd = socket(AF_INET, SOCK_STREAM, 0);
-	if (fd < 0){
-		printf("Failed to create socket!\n");
-		return -1;
-	}
-
-	memset((char *)&myaddr, 0, sizeof(myaddr));
+	memset((char *)&clientsockaddr, 0, sizeof(clientsockaddr));
+	memset((char*)&serversockaddr, 0, sizeof(serversockaddr));
 	memset(recvBuff, '0' ,sizeof(recvBuff));
-	memset((char*)&servaddr, 0, sizeof(servaddr));
 
-	myaddr.sin_family = AF_INET;
-	myaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-	myaddr.sin_port = htons(0);
+	clientsockaddr.sin_family = AF_INET;
+	clientsockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+	clientsockaddr.sin_port = htons(0);
 
-	if (bind(fd, (struct sockaddr *)&myaddr, sizeof(myaddr)) < 0) {
-		printf("Bind Failed!\n");
-		close(fd);
-		return -1;
-	}
+	serversockaddr.sin_family = AF_INET;
+	serversockaddr.sin_port = htons(port);
 
-	servaddr.sin_family = AF_INET;
-	servaddr.sin_port = htons(port1);
-
-	/* look up the address of the server given its name */
 	hp = gethostbyname(host);
 	if (!hp) {
-		fprintf(stderr, "could not obtain address of %s\n", host);
-		close(fd);
-		return -1;
+		printf("Could not obtain address of %s\n", host);
+		close(server_fd);
+		return flag;
 	}
+	memcpy((void *)&serversockaddr.sin_addr, hp->h_addr_list[0], hp->h_length);
 
-	/* put the host's address into the server address structure */
-	memcpy((void *)&servaddr.sin_addr, hp->h_addr_list[0], hp->h_length);
-
-	/* connect to server */
-	if (connect(fd, (struct sockaddr *)&servaddr, sizeof(servaddr)) < 0) {
+	server_fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (server_fd < 0){
+		printf("Failed to create socket!\n");
+		return flag;
+	}
+	if (bind(server_fd, (struct sockaddr *)&clientsockaddr, sizeof(clientsockaddr)) < 0) {
+		printf("Bind Failed!\n");
+		close(server_fd);
+		return flag;
+	}
+	if (connect(server_fd, (struct sockaddr *)&serversockaddr, sizeof(serversockaddr)) < 0) {
 		printf("Connect failed!\n");
-		close(fd);
-		return -1;
+		close(server_fd);
+		return flag;
 	}
-
-	write(fd, filename, strlen(filename));
-
-	FILE *fr = fopen(filename, "a");
-	if(fr == NULL)
-		printf("File %s Cannot be opened.\n", filename);
-	else{
-		bzero(recvBuff, LENGTH); 
-		int fr_block_sz = 0;
-		int flag = -1;
-		if ( (fr_block_sz = read(fd, recvBuff, LENGTH)) <=0){
-			printf("File not found on Server1.\n");
-		}else{
+	write(server_fd, filename, strlen(filename));
+	bzero(recvBuff, LENGTH); 
+	int fr_block_sz = 0;
+	if ( (fr_block_sz = read(server_fd, recvBuff, LENGTH)) <=0){
+		printf("File not found on Server with port %d.\n", port);
+	}else{
+		FILE *fr = fopen(filename, "a");
+		if(fr == NULL)
+			printf("File %s Cannot be opened.\n", filename);
+		else{
 			int write_sz = fwrite(recvBuff, sizeof(char), fr_block_sz, fr);
 			if(write_sz < fr_block_sz){
 				printf("File write failed.\n");
 			}
 			bzero(recvBuff, LENGTH);
-			while((fr_block_sz = read(fd, recvBuff, LENGTH)) > 0){
+			while((fr_block_sz = read(server_fd, recvBuff, LENGTH)) > 0){
 				int write_sz = fwrite(recvBuff, sizeof(char), fr_block_sz, fr);
 				if(write_sz < fr_block_sz){
 					printf("File write failed.\n");
@@ -103,10 +86,26 @@ int main()
 			if(fr_block_sz < 0){
 				printf("File transfer failed!\n");
 			}
-			printf("Congratulations! File received from server!\n");
+			printf("Congratulations! File received from server with port %d!\n", port);
+			flag = 1;
+			fclose(fr);
 		}
-		fclose(fr);
 	}
-	close(fd);
+	close(server_fd);
+	return flag;
+}
+
+int main(){
+	char *host = "localhost";
+	char filename[1000];
+	int status;
+
+	printf("Enter filename:");
+	scanf("%s", filename);
+
+	status = server_rcv(filename, SERVER1_PORT);
+	if (status == -1){
+		server_rcv(filename, SERVER2_PORT);
+	}
 	return 0;
 }

@@ -7,12 +7,12 @@
 #include <sys/errno.h>
 #include <sys/types.h>
 
-#define SERVICE_PORT	21235
+#define SERVER_PORT	21235
 #define LENGTH 100000
 
 int main()
 {
-	int port = SERVICE_PORT;
+	int port = SERVER_PORT;
 
 	int svc;        /* listening socket providing service */
 	int rqst;       /* socket accepting the request */
@@ -52,7 +52,7 @@ int main()
 		return -1;
 	}
 
-	printf("Congratulations! Server started on %s. Listening on port %d\n", hostname, port);
+	printf("Server 1 started on %s. Listening on port %d\n", hostname, port);
 
 	int sin_size = sizeof(client_addr);
 
