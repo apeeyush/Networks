@@ -7,11 +7,13 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 
-#define SERVER1_PORT	21235
-#define SERVER2_PORT	21236
+#define LENGTH 1000000
 
-#define LENGTH 100000
-
+/**
+	Connects to Server specified using port (on localhost)
+	Copies the file if present on server and returns 1
+	Returns -1 if error or file not present
+**/
 int server_rcv(char filename[1000], int port){
 	char *host = "localhost";
 	char recvBuff[LENGTH];
@@ -60,30 +62,30 @@ int server_rcv(char filename[1000], int port){
 	}
 	write(server_fd, filename, strlen(filename));
 	bzero(recvBuff, LENGTH); 
-	int fr_block_sz = 0;
-	if ( (fr_block_sz = read(server_fd, recvBuff, LENGTH)) <=0){
+	int block_size = 0;
+	if ( (block_size = read(server_fd, recvBuff, LENGTH)) <=0){
 		printf("File not found on Server with port %d.\n", port);
 	}else{
-		FILE *fr = fopen(filename, "a");
+		FILE *fr = fopen(filename, "w");
 		if(fr == NULL)
 			printf("File %s Cannot be opened.\n", filename);
 		else{
-			int write_sz = fwrite(recvBuff, sizeof(char), fr_block_sz, fr);
-			if(write_sz < fr_block_sz){
+			int write_sz = fwrite(recvBuff, sizeof(char), block_size, fr);
+			if(write_sz < block_size){
 				printf("File write failed.\n");
 			}
 			bzero(recvBuff, LENGTH);
-			while((fr_block_sz = read(server_fd, recvBuff, LENGTH)) > 0){
-				int write_sz = fwrite(recvBuff, sizeof(char), fr_block_sz, fr);
-				if(write_sz < fr_block_sz){
+			while((block_size = read(server_fd, recvBuff, LENGTH)) > 0){
+				int write_sz = fwrite(recvBuff, sizeof(char), block_size, fr);
+				if(write_sz < block_size){
 					printf("File write failed.\n");
 				}
 				bzero(recvBuff, LENGTH);
-				if (fr_block_sz == 0 || fr_block_sz != 512){
+				if (block_size == 0 || block_size != 512){
 					break;
 				}
 			}
-			if(fr_block_sz < 0){
+			if(block_size < 0){
 				printf("File transfer failed!\n");
 			}
 			printf("Congratulations! File received from server with port %d!\n", port);
@@ -99,13 +101,19 @@ int main(){
 	char *host = "localhost";
 	char filename[1000];
 	int status;
+	int server1_port, server2_port;
 
+	// Take input from user
+	printf("Enter port value for Server 1 (Eg. 21491):");
+	scanf("%d",&server1_port);
+	printf("Enter port value for Server 2 (Eg. 21497):");
+	scanf("%d",&server2_port);
 	printf("Enter filename:");
 	scanf("%s", filename);
 
-	status = server_rcv(filename, SERVER1_PORT);
+	status = server_rcv(filename, server1_port);				// Receive file from server 1 if present
 	if (status == -1){
-		server_rcv(filename, SERVER2_PORT);
+		server_rcv(filename, server2_port);						// Receive file from server 2 if present (and not present on server 1)
 	}
 	return 0;
 }
